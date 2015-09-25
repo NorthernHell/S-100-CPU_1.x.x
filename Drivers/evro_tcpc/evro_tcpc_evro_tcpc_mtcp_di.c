@@ -20,7 +20,6 @@ typedef struct _tag_strMtcp_di
     int32  NR;
     int32  TimeOutu;
     int32  TimeOutsec;
-    int32  count;    
 } strOemParam;
 
 
@@ -37,9 +36,7 @@ typSTATUS evro_tcpc_evro_tcpc_mtcp_diIosOpen
 (
   strRtIoSplDvc* pRtIoSplDvc /* Run time io struct of the device to read */
 )
-{   strRtIoCpxDvc *cpxDev=(strRtIoCpxDvc *)pRtIoSplDvc->pvRtIoLevBack;
-    strOemParam *oemCPar=(strOemParam *)cpxDev->pvOemParam; 
-    oemCPar->count=1000;
+{
     printf("MB TCPC DI init\n");
     return (0);
 }
@@ -81,20 +78,12 @@ void evro_tcpc_evro_tcpc_mtcp_diIosRead
     modbus_t *ctx;
     uint8_t tab_reg[150];
     int rc;
-    int mc;    
     struct timeval response_timeout;
     response_timeout.tv_sec = oemCPar->TimeOutsec;
     response_timeout.tv_usec = oemCPar->TimeOutu;
     ctx = modbus_new_tcp(oemCPar->IP, oemCPar->PORT); //connect
-
-    if(oemCPar->count<1000)oemCPar->count=oemCPar->count+1;
- //   printf("count= %d\n", oemCPar->count );    
-    
-    if (oemCPar->count>=1000) {mc =  modbus_connect(ctx);} 
-
-    //ctx
-        if (mc == -1)                    //connect status
-    {   oemCPar->count=0;
+    if (modbus_connect(ctx) == -1)
+    {
         printf("Connexion failed (new DI): \n");
         modbus_free(ctx);
     }
@@ -110,53 +99,53 @@ void evro_tcpc_evro_tcpc_mtcp_diIosRead
         }
         else
         {
-    		strRtIoChan*        pChannel;
-    		strDfIoSplDvc*      pStaticDef;
-    		uint16              nbChannel;
-    		uint16              nbIndex;
-            uchar*              pPhyData;   /* Physical value            */
-            uchar*              pLogData;   /* Logical Value               */
-            uchar               byElecData; /* Electrical value ('1' or '0') */
-            pStaticDef = pRtIoSplDvc->pDfIoSplDvc;
-            nbChannel  = pStaticDef->huNbChan;
-            pChannel   = pRtIoSplDvc->pRtIoChan;
-                cpxDev->luUser =1;
-        		modbus_close(ctx);
-        		modbus_free(ctx);
-        		/* Update all channels */
-        		for (nbIndex=0; nbIndex <  nbChannel ; nbIndex++)
+		strRtIoChan*        pChannel;
+		strDfIoSplDvc*      pStaticDef;
+		uint16              nbChannel;
+		uint16              nbIndex;
+    uchar*              pPhyData;   /* Physical value            */
+    uchar*              pLogData;   /* Logical Value               */
+    uchar               byElecData; /* Electrical value ('1' or '0') */
+    pStaticDef = pRtIoSplDvc->pDfIoSplDvc;
+    nbChannel  = pStaticDef->huNbChan;
+    pChannel   = pRtIoSplDvc->pRtIoChan;
+            cpxDev->luUser =1;
+			modbus_close(ctx);
+			modbus_free(ctx);
+			/* Update all channels */
+			  for (nbIndex=0; nbIndex <  nbChannel ; nbIndex++)
+    {
+        pPhyData = (uchar*)(pChannel->pvKerPhyData);
+        pLogData = (uchar*)(pChannel->pvKerData);
+        byElecData = tab_reg[nbIndex];
+        if((pChannel->pfnCnvCall) != 0)           /* If there is a conversion */
+            pChannel->pfnCnvCall( ISA_IO_DIR_INPUT, &byElecData, &byElecData);
+
+
+        if((pChannel->luCnvMult) != 1)            /* If the input is reversed */
+        {
+            if( *pPhyData == byElecData) /* If Physic value = Electrical value */
             {
-                pPhyData = (uchar*)(pChannel->pvKerPhyData);
-                pLogData = (uchar*)(pChannel->pvKerData);
-                byElecData = tab_reg[nbIndex];
-                if((pChannel->pfnCnvCall) != 0)           /* If there is a conversion */
-                    pChannel->pfnCnvCall( ISA_IO_DIR_INPUT, &byElecData, &byElecData);
-
-
-                if((pChannel->luCnvMult) != 1)            /* If the input is reversed */
-                {
-                    if( *pPhyData == byElecData) /* If Physic value = Electrical value */
-                    {
-                        /* printf ("Input value - channel %d has changed\n",nbIndex); */
-                        if( byElecData) *pPhyData =0; /* Logic value != Physic value */
-                        else            *pPhyData =1;
-                    }
-                }
-                else                          /* If the input is direct */
-                {
-                    if( byElecData != *pPhyData)
-                    {
-                        /* printf ("Input value - channel %d has changed\n",nbIndex); */
-                        *pPhyData = byElecData;
-                    }
-                }
-                /* update the channel if not locked */
-                if (!(pChannel->cuIsLocked))  *pLogData = *pPhyData;
-
-                pChannel++;
+                /* printf ("Input value - channel %d has changed\n",nbIndex); */
+                if( byElecData) *pPhyData =0; /* Logic value != Physic value */
+                else            *pPhyData =1;
             }
+        }
+        else                          /* If the input is direct */
+        {
+            if( byElecData != *pPhyData)
+            {
+                /* printf ("Input value - channel %d has changed\n",nbIndex); */
+                *pPhyData = byElecData;
+            }
+        }
+        /* update the channel if not locked */
+        if (!(pChannel->cuIsLocked))  *pLogData = *pPhyData;
 
+        pChannel++;
+    }
         }			
+        
     }
 }
 
