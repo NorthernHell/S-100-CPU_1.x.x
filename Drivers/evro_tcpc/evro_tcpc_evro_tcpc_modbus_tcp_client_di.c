@@ -25,7 +25,6 @@ typedef struct _tag_strModbus_tcp_client_di
     int32  NR;
     int32  TimeOutu;
     int32  TimeOutsec;
-    int32  count;    
 } strModbus_tcp_client_di;
 
 /****************************************************************************

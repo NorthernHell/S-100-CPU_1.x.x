@@ -19,7 +19,6 @@ typedef struct _tag_strMtcp_ao
     int32	FUNCION;
     int32  TimeOutu;
     int32  TimeOutsec;
-    int32  count;    
 } strOemParam;
 /****************************************************************************
 function    : evro_tcpc_evro_tcpc_mtcp_aiIosOpen
@@ -34,9 +33,7 @@ typSTATUS evro_tcpc_evro_tcpc_mtcp_aoIosOpen
 (
   strRtIoSplDvc* pRtIoSplDvc /* Run time io struct of the device to read */
 )
-{   strRtIoCpxDvc *cpxDev=(strRtIoCpxDvc *)pRtIoSplDvc->pvRtIoLevBack;
-    strOemParam *oemCPar=(strOemParam *)cpxDev->pvOemParam; 
-    oemCPar->count=1000;
+{
     printf("MB TCPC AO init\n");
     return (0);
 }
@@ -76,7 +73,8 @@ void evro_tcpc_evro_tcpc_mtcp_aoIosWrite
     strDfIoSplDvc*   pStaticDef;
     uint16           nbChannel;
     uint16           nbIndex;
-    uint16_t         tab_reg[128];
+    uint16_t tab_reg[128];
+
     int16*           pPhyData;  /* Physical value */
     int16*           pLogData;  /* Logic Value */
     int16            iElecData; /* Electrical value */
@@ -125,16 +123,12 @@ void evro_tcpc_evro_tcpc_mtcp_aoIosWrite
     */
     modbus_t *ctx;
     int rc;
-    int mc;    
     struct timeval response_timeout;
     response_timeout.tv_sec = oemCPar->TimeOutsec;
     response_timeout.tv_usec = oemCPar->TimeOutu;
     ctx = modbus_new_tcp(oemCPar->IP, oemCPar->PORT); //connect
-    if(oemCPar->count<1000)oemCPar->count=oemCPar->count+1;
-    if (oemCPar->count>=1000) {mc =  modbus_connect(ctx);} 
-
-    if (mc == -1)
-    {   oemCPar->count=0;
+    if (modbus_connect(ctx) == -1)
+    {
         printf("Connexion failed: \n");
         modbus_free(ctx);
     }
@@ -160,16 +154,14 @@ void evro_tcpc_evro_tcpc_mtcp_aoIosWrite
 		if (rc == -1)
         {
             cpxDev->luUser =0;
-            modbus_close(ctx);
-            modbus_free(ctx);
         }
         else
         {
             cpxDev->luUser =1;
-            modbus_close(ctx);
-            modbus_free(ctx);
-        }			
-    }
+        };			
+        modbus_close(ctx);
+        modbus_free(ctx);
+    };
 }
 
 /****************************************************************************
